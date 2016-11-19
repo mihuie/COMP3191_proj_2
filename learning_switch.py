@@ -10,6 +10,8 @@ Start it up with a commandline like...
 import sim.api as api
 import sim.basics as basics
 
+import random
+
 
 class LearningSwitch(api.Entity):
     """
@@ -30,8 +32,7 @@ class LearningSwitch(api.Entity):
         You probablty want to do something in this method.
 
         """
-        self.neighbouring_switch = {}   # stores port:neighbour
-
+        self.switch_dict = {}   # stores port:neighbour
 
     def handle_link_down(self, port):
         """
@@ -41,7 +42,7 @@ class LearningSwitch(api.Entity):
         valid here.
 
         """
-        self.neighbouring_switch.pop(port)
+        self.switch_dict = { k:v for k, v in self.switch_dict.items() if v != port }
 
     def handle_rx(self, packet, in_port):
         """
@@ -59,10 +60,25 @@ class LearningSwitch(api.Entity):
         # But it's up to you to implement that.  For now, we just implement a
         # simple hub.
 
-        if isinstance(packet, basics.HostDiscoveryPacket):
-            # Don't forward discovery messages
-            
+        def handle_switch_dict():
+            if packet.src != None:
+                if packet.src not in self.switch_dict:
+                    self.switch_dict[packet.src] = []
+                if in_port not in self.switch_dict[packet.src]:
+                    self.switch_dict[packet.src].append(in_port)
+
+
+        if packet.dst == self:
             return
 
-        # Flood out all ports except the input port
-        self.send(packet, in_port, flood=True)
+        if isinstance(packet, basics.HostDiscoveryPacket):
+            handle_switch_dict()
+            return
+        else:           
+            handle_switch_dict()
+            if packet.dst in self.switch_dict:
+                self.send(packet, random.choice(self.switch_dict[packet.dst]), flood=False)
+            else:
+                self.send(packet, in_port, flood=True)
+
+
