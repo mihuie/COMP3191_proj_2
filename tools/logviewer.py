@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from Tkinter import *
+# import tkinter 
 from ScrolledText import *
 from tkFont import Font
 from Queue import Queue, Empty

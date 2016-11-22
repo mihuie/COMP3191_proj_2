@@ -33,6 +33,7 @@ class LearningSwitch(api.Entity):
 
         """
         self.switch_dict = {}   # stores port:neighbour
+        self.host_dict = {}     # stores host:port
 
     def handle_link_down(self, port):
         """
@@ -43,6 +44,7 @@ class LearningSwitch(api.Entity):
 
         """
         self.switch_dict = { k:v for k, v in self.switch_dict.items() if v != port }
+        self.host_dict  = { k:v for k, v in self.host_dict.items() if v != port }
 
     def handle_rx(self, packet, in_port):
         """
@@ -60,25 +62,31 @@ class LearningSwitch(api.Entity):
         # But it's up to you to implement that.  For now, we just implement a
         # simple hub.
 
-        def handle_switch_dict():
+        def _switch_dict():
             if packet.src != None:
                 if packet.src not in self.switch_dict:
                     self.switch_dict[packet.src] = []
                 if in_port not in self.switch_dict[packet.src]:
                     self.switch_dict[packet.src].append(in_port)
 
-
-        if packet.dst == self:
-            return
-
-        if isinstance(packet, basics.HostDiscoveryPacket):
-            handle_switch_dict()
-            return
-        else:           
-            handle_switch_dict()
-            if packet.dst in self.switch_dict:
+            if packet.dst in self.host_dict:
+                self.send(packet, self.host_dict[packet.dst], flood=False)
+            elif packet.dst in self.switch_dict:
                 self.send(packet, random.choice(self.switch_dict[packet.dst]), flood=False)
             else:
                 self.send(packet, in_port, flood=True)
+        
+        def _host_dict():
+            if packet.src != None and packet.src not in self.host_dict:
+                self.host_dict[packet.src] = in_port
+
+        if packet.dst == self:
+            return 
+
+        if isinstance(packet, basics.HostDiscoveryPacket):
+            _host_dict()
+        else:           
+            _switch_dict()
+            
 
 
