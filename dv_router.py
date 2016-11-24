@@ -20,13 +20,12 @@ class DVRouter(basics.DVRouterBase):
 
         You probably want to do some additional initialization here.
         """
+        self.start_timer()
 
-        self.links = {}
         self.routing_tb = {}
         self.d_vectors = {}  
         self.known_hosts = {}
-
-        self.start_timer()
+        self.Known_links = {}
 
     def handle_link_up(self, port, latency):
         """
@@ -35,7 +34,7 @@ class DVRouter(basics.DVRouterBase):
         The port attached to the link and the link latency are passed in.
         """
 
-        self.links[port] = latency
+        self.Known_links[port] = latency
         self.d_vectors[port] = {}
         for (host, cost) in self.routing_tb.items():
             self.send(basics.RoutePacket(host, cost[0]), port, flood=False)
@@ -47,7 +46,7 @@ class DVRouter(basics.DVRouterBase):
         The port number used by the link is passed in.
         """
 
-        del self.links[port]
+        del self.Known_links[port]
         del self.d_vectors[port]
         for host in self.known_hosts.keys():
             if self.known_hosts[host] == port:
@@ -79,11 +78,11 @@ class DVRouter(basics.DVRouterBase):
     def handle_RoutePacket(self, packet, port):
         host = packet.destination
         self.d_vectors[port][host] = packet.latency
-        cost = min(self.links[port] + packet.latency, INFINITY)
+        cost = min(self.Known_links[port] + packet.latency, INFINITY)
 
         if host in self.routing_tb.keys():
             if self.routing_tb[host][1] == port:
-                current_best = self.links[port] + packet.latency
+                current_best = self.Known_links[port] + packet.latency
                 current_port = port
                 self.calc_send(current_best, current_port, host)
 
@@ -97,7 +96,7 @@ class DVRouter(basics.DVRouterBase):
                 self.send(basics.RoutePacket(host, cost), port, flood=True)        
 
     def handle_HostDiscoveryPacket(self, packet, port):
-        self.routing_tb[packet.src] = [self.links[port], port, 
+        self.routing_tb[packet.src] = [self.Known_links[port], port, 
                 api.current_time()]
         self.known_hosts[packet.src] = port
         self.send(basics.RoutePacket(packet.src,
@@ -157,8 +156,8 @@ class DVRouter(basics.DVRouterBase):
         # bell ford
         for neighbour in self.d_vectors.keys():
             if host in self.d_vectors[neighbour]:
-                if self.links[neighbour] + self.d_vectors[neighbour][host] < cost:
-                    cost = self.links[neighbour] + self.d_vectors[neighbour][host]
+                if self.Known_links[neighbour] + self.d_vectors[neighbour][host] < cost:
+                    cost = self.Known_links[neighbour] + self.d_vectors[neighbour][host]
                     port = neighbour
         return cost, port, api.current_time()
         
